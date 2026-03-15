@@ -1,0 +1,13 @@
+type,amount,description
+Sales,10000,shop rent 
+Expense,6000,shop rent 
+Sales,6500,shop rent 
+Expense,6000,shop rent 
+Sales,3000,office rent
+Expense,3000,office rent
+Sales,30000,office rent
+Expense,20000,office rent
+Sales,55000,bus fee
+Expense,5000,bus fee
+Sales,15000,office rent
+Expense,5000,office rent
