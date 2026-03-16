@@ -74,8 +74,8 @@ def login():
             login_count = prev_count + 1
 
             # Add new row
-            new = pd.DataFrame([[username, login_time, "", "", login_count]],
-                               columns=["username","login_time","logout_time","time_spent","login_count"])
+            new = pd.DataFrame([[username, login_time, None, None, login_count]],
+                   columns=["username","login_time","logout_time","time_spent","login_count"])
             history = pd.concat([history,new], ignore_index=True)
             history.to_csv("login_history.csv", index=False)
 
@@ -422,24 +422,31 @@ elif menu == "Admin":
 # ================== LOGOUT ==================
 elif menu == "Logout":
     if st.session_state.logged_in:
+
         import datetime
+
         logout_time = datetime.datetime.now()
         login_time = st.session_state.login_time
-        time_spent = logout_time - login_time
 
-        # Load login history
+        if login_time is not None:
+            time_spent = logout_time - login_time
+        else:
+            time_spent = ""
+
         history = pd.read_csv("login_history.csv")
 
-        # Find the last login row for this user where logout_time is empty
-        idx = history[(history["username"]==st.session_state.username) & (history["logout_time"]=="")].index
-        if len(idx) > 0:
-            history.loc[idx[-1], "logout_time"] = logout_time
-            history.loc[idx[-1], "time_spent"] = str(time_spent)
+        # Find latest login row for user
+        user_rows = history[history["username"] == st.session_state.username]
 
-        # Save updates
+        if not user_rows.empty:
+            last_index = user_rows.index[-1]
+
+            history.loc[last_index, "logout_time"] = logout_time
+            history.loc[last_index, "time_spent"] = str(time_spent)
+
         history.to_csv("login_history.csv", index=False)
 
-    # Clear session
     st.session_state.logged_in = False
     st.session_state.username = ""
+
     st.success("Logged Out Successfully")
