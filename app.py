@@ -3,19 +3,42 @@ import pandas as pd
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+
 # ---------- UI SETTINGS ----------
 st.set_page_config(page_title="Business Analyzer", layout="wide")
 
 st.markdown("""
     <style>
+    /* Background */
     .stApp {
-        background-color: #f5f7fa;
+        background-color: #0E1117;
     }
+
+    /* Cards / Metrics */
     .stMetric {
-        background-color: white;
+        background-color: #1E1E1E;
         padding: 15px;
         border-radius: 10px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        color: white;
+    }
+
+    /* Input boxes */
+    .stTextInput input {
+        background-color: #2A2A2A;
+        color: white;
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background-color: #FF4B4B;
+        color: white;
+        border-radius: 8px;
+    }
+
+    /* Labels */
+    label {
+        color: white !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -228,46 +251,54 @@ elif menu == "Inventory":
     # ---------- SESSION STATE ----------
     if "manual_inventory" not in st.session_state:
         st.session_state.manual_inventory = pd.DataFrame(columns=["product", "quantity", "price"])
+
     if "uploaded_inventory" not in st.session_state:
         st.session_state.uploaded_inventory = pd.DataFrame(columns=["product", "quantity", "price"])
 
     # ================== MANUAL ADD PRODUCT ==================
     st.subheader("Add Product Manually")
-    product = st.text_input("Product Name", key="manual_product")
-    qty = st.number_input("Quantity", 0, step=1, key="manual_qty")
-    price = st.number_input("Price", 0, step=1, key="manual_price")
 
-    if st.button("Add Product Manually"):
+    product = st.text_input("Product Name")
+    qty = st.number_input("Quantity", 0, step=1)
+    price = st.number_input("Price", 0, step=1)
+
+    if st.button("Add Product"):
         if product.strip() == "":
             st.error("Enter a product name")
         else:
-            new_row = pd.DataFrame([[product.strip(), qty, price]], columns=["product", "quantity", "price"])
-            st.session_state.manual_inventory = pd.concat([st.session_state.manual_inventory, new_row], ignore_index=True)
+            new_row = pd.DataFrame([[product.strip(), qty, price]],
+                                   columns=["product", "quantity", "price"])
+
+            st.session_state.manual_inventory = pd.concat(
+                [st.session_state.manual_inventory, new_row],
+                ignore_index=True
+            )
+
             st.success(f"Product '{product}' added successfully!")
 
-    # Show Manual Inventory Table
+    # ================== SHOW MANUAL INVENTORY ==================
     if not st.session_state.manual_inventory.empty:
-        st.subheader("Manual Inventory Table")
-        st.dataframe(st.session_state.manual_inventory.fillna("-"))
+        st.subheader("Manual Inventory")
+        st.dataframe(st.session_state.manual_inventory)
 
-        if st.button("Clear Manual Inventory Table"):
+        if st.button("Clear Manual Inventory"):
             st.session_state.manual_inventory = pd.DataFrame(columns=["product", "quantity", "price"])
             st.success("Manual inventory cleared.")
 
-    # ================== UPLOAD CSV / EXCEL ==================
+    # ================== UPLOAD FILE ==================
     st.subheader("Upload Inventory CSV/Excel")
-    file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"], key="upload_file")
+
+    file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
 
     if file is not None:
         try:
             if file.name.endswith("csv"):
                 df = pd.read_csv(file)
             else:
-                xls = pd.ExcelFile(file)
-                sheet_name = st.selectbox("Select sheet to upload", xls.sheet_names)
-                df = pd.read_excel(xls, sheet_name=sheet_name)
+                df = pd.read_excel(file)
 
             df.columns = df.columns.str.strip().str.lower()
+
             rename_map = {}
             for col in df.columns:
                 if "product" in col:
@@ -276,6 +307,7 @@ elif menu == "Inventory":
                     rename_map[col] = "quantity"
                 elif "price" in col or "cost" in col:
                     rename_map[col] = "price"
+
             df.rename(columns=rename_map, inplace=True)
 
             if set(["product", "quantity", "price"]).issubset(df.columns):
@@ -283,19 +315,20 @@ elif menu == "Inventory":
                 st.session_state.uploaded_inventory = df
                 st.success("File uploaded successfully!")
             else:
-                st.error("CSV/Excel must have columns: product, quantity, price")
+                st.error("File must contain product, quantity, price columns")
 
         except Exception as e:
-            st.error(f"Error uploading file: {e}")
+            st.error(f"Error: {e}")
 
-    # Show Uploaded Inventory Table
+    # ================== SHOW UPLOADED ==================
     if not st.session_state.uploaded_inventory.empty:
-        st.subheader("Uploaded Inventory Table")
-        st.dataframe(st.session_state.uploaded_inventory.fillna("-"))
+        st.subheader("Uploaded Inventory")
+        st.dataframe(st.session_state.uploaded_inventory)
 
-        if st.button("Clear Uploaded Inventory Table"):
+        if st.button("Clear Uploaded Inventory"):
             st.session_state.uploaded_inventory = pd.DataFrame(columns=["product", "quantity", "price"])
             st.success("Uploaded inventory cleared.")
+
 
 # ================== REPORTS ==================
 elif menu == "Reports":
