@@ -3,7 +3,22 @@ import pandas as pd
 import os
 import plotly.express as px
 import plotly.graph_objects as go
-from model import calculate_profit
+# ---------- UI SETTINGS ----------
+st.set_page_config(page_title="Business Analyzer", layout="wide")
+
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #f5f7fa;
+    }
+    .stMetric {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ---------- CREATE FILES IF NOT EXIST ----------
 if not os.path.exists("users.csv"):
@@ -51,50 +66,82 @@ def register():
 # ---------- LOGIN FUNCTION ----------
 def login():
     st.subheader("Login")
+
     username = st.text_input("Username").strip()
     password = st.text_input("Password", type="password").strip()
 
     if st.button("Login"):
-        users = pd.read_csv("users.csv", dtype=str)
 
+        # 🔴 Handle empty or corrupted users.csv
+        try:
+            users = pd.read_csv("users.csv", dtype=str)
+        except:
+            users = pd.DataFrame(columns=["username","email","password"])
+            users.to_csv("users.csv", index=False)
+
+        # 🔴 Check columns exist
+        if not set(["username","password"]).issubset(users.columns):
+            st.error("users.csv file is corrupted. Fix columns.")
+            return False
+
+        # 🔐 Login check
         if ((users["username"] == username) & (users["password"] == password)).any():
 
+            # ✅ Login success
             st.session_state.logged_in = True
             st.session_state.username = username
+
+            # 🔴 IMPORTANT: Reset admin access every login
+            st.session_state.manager_authenticated = False
+
             st.success("Login Successful")
 
             import datetime
             login_time = datetime.datetime.now()
 
-            # Load history
-            history = pd.read_csv("login_history.csv")
+            # 🔴 Handle empty login_history.csv
+            try:
+                history = pd.read_csv("login_history.csv")
+            except:
+                history = pd.DataFrame(columns=[
+                    "username","login_time","logout_time","time_spent","login_count"
+                ])
 
-            # Calculate login count
-            prev_count = history[history["username"]==username].shape[0]
+            # 🔢 Calculate login count
+            prev_count = history[history["username"] == username].shape[0]
             login_count = prev_count + 1
 
-            # Add new row
+            # ➕ Add login record
             new = pd.DataFrame([[username, login_time, None, None, login_count]],
-                   columns=["username","login_time","logout_time","time_spent","login_count"])
-            history = pd.concat([history,new], ignore_index=True)
+                columns=["username","login_time","logout_time","time_spent","login_count"]
+            )
+
+            history = pd.concat([history, new], ignore_index=True)
             history.to_csv("login_history.csv", index=False)
 
-            # Save login_time in session
+            # ⏱ Save login time
             st.session_state.login_time = login_time
 
             return True
+
         else:
             st.error("Invalid Credentials")
             return False
+
+
 # ---------- LOGIN PAGE ----------
 if not st.session_state.logged_in:
     st.title("Business Management System")
+
     option = st.radio("Select Option", ["Login", "Register"])
+
     if option == "Login":
         login()
     else:
         register()
+
     st.stop()
+
 
 # ---------- SIDEBAR ----------
 st.sidebar.title("Navigation")
@@ -355,70 +402,90 @@ elif menu == "AI Prediction":
 elif menu == "Admin":
     manager_pass = "admin123"
 
-    # Initialize session state for manager authentication
+    # ---------- SESSION ----------
     if "manager_authenticated" not in st.session_state:
         st.session_state.manager_authenticated = False
 
-    # Password input (always visible until correct password)
+    # ---------- PASSWORD CHECK ----------
     if not st.session_state.manager_authenticated:
         entered_pass = st.text_input("Enter Manager Password", type="password")
+
         if entered_pass:
             if entered_pass == manager_pass:
                 st.session_state.manager_authenticated = True
                 st.success("Manager authenticated!")
             else:
-                st.warning("Incorrect manager password")
+                st.error("Incorrect password")
 
-    # Show Admin dashboard immediately if authenticated
+    # ---------- ADMIN DASHBOARD ----------
     if st.session_state.manager_authenticated:
+
         st.title("Admin Dashboard")
 
-        # ---------- Load Data ----------
-        users = pd.read_csv("users.csv")
-        inventory = pd.read_csv("inventory.csv")
-        transactions = pd.read_csv("transactions.csv")
-        history = pd.read_csv("login_history.csv")
+        # ---------- SAFE READ ----------
+        def safe_read(file, cols):
+            try:
+                df = pd.read_csv(file)
+                if list(df.columns) != cols:
+                    raise Exception
+            except:
+                df = pd.DataFrame(columns=cols)
+                df.to_csv(file, index=False)
+            return df
 
-        # ---------- Dashboard Metrics ----------
+        users = safe_read("users.csv", ["username","email","password"])
+        inventory = safe_read("inventory.csv", ["product","quantity","price"])
+        transactions = safe_read("transactions.csv", ["type","amount","description"])
+        history = safe_read("login_history.csv", ["username","login_time","logout_time","time_spent","login_count"])
+
+        # ---------- METRICS ----------
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Users", len(users))
         col2.metric("Total Products", len(inventory))
         col3.metric("Total Transactions", len(transactions))
 
-        # ---------- Registered Users Table ----------
+        # ---------- USERS ----------
         st.subheader("Registered Users")
         st.dataframe(users)
 
-        # ---------- Change User Password ----------
+        # ---------- CHANGE PASSWORD ----------
         st.subheader("Change User Password")
-        selected_user = st.selectbox("Select User", users["username"])
-        new_pass = st.text_input("New Password for selected user", type="password")
-        if st.button("Update Password"):
-            users.loc[users["username"] == selected_user, "password"] = new_pass
-            users.to_csv("users.csv", index=False)
-            st.success(f"Password for {selected_user} updated successfully!")
+        if not users.empty:
+            selected_user = st.selectbox("Select User", users["username"])
+            new_pass = st.text_input("New Password", type="password")
 
-        # ---------- Full Login History ----------
+            if st.button("Update Password"):
+                if new_pass.strip() == "":
+                    st.warning("Enter password")
+                else:
+                    users.loc[users["username"] == selected_user, "password"] = new_pass
+                    users.to_csv("users.csv", index=False)
+                    st.success("Password updated")
+
+        # ---------- FULL LOGIN HISTORY ----------
         st.subheader("User Login History")
-        st.dataframe(history)
+        st.dataframe(history.fillna("Not Logged Out"))
 
-        # ---------- Filter Login History ----------
-        st.subheader("Filter Login History by User")
-        user_filter = st.radio("Select User", options=["All"] + list(users["username"]))
-        if user_filter != "All":
-            filtered_history = history[history["username"] == user_filter]
-        else:
-            filtered_history = history
-        st.dataframe(filtered_history)
+        # ---------- FILTER ----------
+        st.subheader("Filter Login History")
+        if not users.empty:
+            user_filter = st.radio("Select User", ["All"] + list(users["username"]))
 
-        # ---------- Total Logins Per User ----------
+            if user_filter != "All":
+                filtered = history[history["username"] == user_filter]
+            else:
+                filtered = history
+
+            st.dataframe(filtered.fillna("Not Logged Out"))
+
+        # ---------- TOTAL LOGINS ----------
         st.subheader("Total Logins per User")
-        if "login_count" in history.columns:
-            login_summary = history.groupby("username")["login_count"].max().reset_index()
-            login_summary.rename(columns={"login_count": "total_logins"}, inplace=True)
-            st.dataframe(login_summary)
+        if not history.empty and "login_count" in history.columns:
+            summary = history.groupby("username")["login_count"].max().reset_index()
+            summary.rename(columns={"login_count": "total_logins"}, inplace=True)
+            st.dataframe(summary)
         else:
-            st.info("No login count data available yet")
+            st.info("No login data available")
 # ================== LOGOUT ==================
 elif menu == "Logout":
     if st.session_state.logged_in:
@@ -445,6 +512,9 @@ elif menu == "Logout":
             history.loc[last_index, "time_spent"] = str(time_spent)
 
         history.to_csv("login_history.csv", index=False)
+
+    # 🔴 IMPORTANT FIX
+    st.session_state.manager_authenticated = False   # 👈 ADD THIS LINE
 
     st.session_state.logged_in = False
     st.session_state.username = ""
