@@ -7,40 +7,80 @@ import plotly.graph_objects as go
 # ---------- UI SETTINGS ----------
 st.set_page_config(page_title="Business Analyzer", layout="wide")
 
+# ---------- CUSTOM UI ----------
 st.markdown("""
-    <style>
-    /* Background */
-    .stApp {
-        background-color: #0E1117;
-    }
+<style>
 
-    /* Cards / Metrics */
-    .stMetric {
-        background-color: #1E1E1E;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-        color: white;
-    }
+/* 🌈 FULL SCREEN LAVENDER GRADIENT (IMAGE MATCH) */
+.stApp {
+    background: linear-gradient(135deg, #dcd6f7, #c8b6ff, #e0c3fc);
+    font-family: 'Segoe UI', sans-serif;
+    min-height: 100vh;
+}
 
-    /* Input boxes */
-    .stTextInput input {
-        background-color: #2A2A2A;
-        color: white;
-    }
+/* 📦 REMOVE BOX LOOK (IMPORTANT) */
+.block-container {
+    background: transparent;
+    padding: 40px;
+}
 
-    /* Buttons */
-    .stButton>button {
-        background-color: #FF4B4B;
-        color: white;
-        border-radius: 8px;
-    }
+/* 🔤 Headings */
+h1, h2, h3 {
+    color: #2c2c2c;
+    font-weight: 600;
+}
 
-    /* Labels */
-    label {
-        color: white !important;
-    }
-    </style>
+/* 📊 Cards (soft glass effect) */
+.stMetric {
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(10px);
+    padding: 15px;
+    border-radius: 15px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+}
+
+/* 🔘 Buttons (same pink tone) */
+.stButton>button {
+    background: linear-gradient(to right, #ff758c, #ff7eb3);
+    color: white;
+    border-radius: 12px;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+
+/* 🧾 Inputs */
+.stTextInput>div>div>input,
+.stNumberInput input,
+.stSelectbox div {
+    background-color: rgba(255,255,255,0.85);
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    color: black;
+}
+
+/* 📊 Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #dcd6f7, #c8b6ff);
+}
+
+/* 📋 Tables */
+.stDataFrame {
+    background-color: rgba(255,255,255,0.9);
+    border-radius: 10px;
+}
+
+/* Labels */
+label {
+    color: black !important;
+}
+
+/* ✅ Fix selectbox */
+.stSelectbox > div {
+    width: 100% !important;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 # ---------- CREATE FILES IF NOT EXIST ----------
@@ -217,7 +257,7 @@ if menu == "Dashboard":
     amount = st.number_input("Amount", 0)
     desc = st.text_input("Description")
 
-    if st.button("Add Transaction"):
+    if st.button("Add Transaction", key="add_txn"):
         new = pd.DataFrame([[t_type, amount, desc]],
                            columns=["type", "amount", "description"])
 
@@ -262,7 +302,7 @@ elif menu == "Inventory":
     qty = st.number_input("Quantity", 0, step=1)
     price = st.number_input("Price", 0, step=1)
 
-    if st.button("Add Product"):
+    if st.button("Add Product",key="add_product"):
         if product.strip() == "":
             st.error("Enter a product name")
         else:
@@ -439,10 +479,9 @@ elif menu == "Admin":
     if "manager_authenticated" not in st.session_state:
         st.session_state.manager_authenticated = False
 
-    # ---------- PASSWORD CHECK ----------
+    # ---------- MANAGER LOGIN ----------
     if not st.session_state.manager_authenticated:
         entered_pass = st.text_input("Enter Manager Password", type="password")
-
         if entered_pass:
             if entered_pass == manager_pass:
                 st.session_state.manager_authenticated = True
@@ -455,7 +494,7 @@ elif menu == "Admin":
 
         st.title("Admin Dashboard")
 
-        # ---------- SAFE READ ----------
+        # ---------- SAFE READ FUNCTION ----------
         def safe_read(file, cols):
             try:
                 df = pd.read_csv(file)
@@ -466,6 +505,7 @@ elif menu == "Admin":
                 df.to_csv(file, index=False)
             return df
 
+        # ---------- LOAD DATA ----------
         users = safe_read("users.csv", ["username","email","password"])
         inventory = safe_read("inventory.csv", ["product","quantity","price"])
         transactions = safe_read("transactions.csv", ["type","amount","description"])
@@ -481,10 +521,14 @@ elif menu == "Admin":
         st.subheader("Registered Users")
         st.dataframe(users)
 
-        # ---------- CHANGE PASSWORD ----------
+        # ---------- CHANGE USER PASSWORD ----------
         st.subheader("Change User Password")
         if not users.empty:
-            selected_user = st.selectbox("Select User", users["username"])
+            selected_user = st.selectbox(
+                "Select User",
+                options=users["username"].tolist(),
+                format_func=lambda x: x  # ensures full username shows
+            )
             new_pass = st.text_input("New Password", type="password")
 
             if st.button("Update Password"):
@@ -493,25 +537,23 @@ elif menu == "Admin":
                 else:
                     users.loc[users["username"] == selected_user, "password"] = new_pass
                     users.to_csv("users.csv", index=False)
-                    st.success("Password updated")
+                    st.success(f"Password for '{selected_user}' updated successfully!")
 
         # ---------- FULL LOGIN HISTORY ----------
         st.subheader("User Login History")
         st.dataframe(history.fillna("Not Logged Out"))
 
-        # ---------- FILTER ----------
+        # ---------- FILTER LOGIN HISTORY ----------
         st.subheader("Filter Login History")
         if not users.empty:
             user_filter = st.radio("Select User", ["All"] + list(users["username"]))
-
             if user_filter != "All":
                 filtered = history[history["username"] == user_filter]
             else:
                 filtered = history
-
             st.dataframe(filtered.fillna("Not Logged Out"))
 
-        # ---------- TOTAL LOGINS ----------
+        # ---------- TOTAL LOGINS PER USER ----------
         st.subheader("Total Logins per User")
         if not history.empty and "login_count" in history.columns:
             summary = history.groupby("username")["login_count"].max().reset_index()

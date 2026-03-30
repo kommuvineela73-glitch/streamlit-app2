@@ -1,0 +1,79 @@
+/* 🌈 Full background */
+.stApp {
+    background: linear-gradient(to right, #FFDAB9, #FFE5B4);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* 📦 Main container */
+.block-container {
+    background: #fffaf5;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0px 6px 20px rgba(0,0,0,0.1);
+}
+
+/* 🔤 Headings */
+h1, h2, h3 {
+    color: #333;
+    font-weight: 600;
+}
+
+/* 📊 Metrics (cards) */
+.stMetric {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+/* 🔘 Buttons */
+.stButton>button {
+    background: linear-gradient(to right, #ff9a8b, #ff6a88);
+    color: white;
+    border-radius: 10px;
+    border: none;
+    padding: 10px 18px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.stButton>button:hover {
+    background: linear-gradient(to right, #ff6a88, #ff9a8b);
+    transform: scale(1.05);
+}
+
+/* 🧾 Input boxes */
+.stTextInput>div>div>input,
+.stNumberInput input,
+.stSelectbox div {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+/* 📋 Tables */
+.stDataFrame {
+    background-color: white;
+    border-radius: 10px;
+}
+
+/* 📊 Sidebar */
+section[data-testid="stSidebar"] {
+    background: #ffe4d6;
+}
+
+/* 🔘 Radio buttons */
+.stRadio > div {
+    flex-direction: row;
+}
+
+/* 🟢 Success / 🔴 Error messages */
+.stAlert {
+    border-radius: 10px;
+}
+
+/* 📈 Charts spacing */
+.css-1d391kg {
+    padding: 10px;
+}
